@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Телеком Оператор — Учёт</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="h-screen flex flex-col bg-slate-100 font-sans">
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center gap-4">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-sm">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <ellipse cx="12" cy="5" rx="9" ry="3"/>
+          <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/>
+          <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-base font-bold text-slate-800 leading-tight">Телеком Оператор — Учёт</h1>
+        <p class="text-xs text-slate-400 leading-tight">Flask · Python</p>
+      </div>
+    </div>
+    <nav class="ml-auto flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
+      {% for key, label, desc in tabs %}
+      <a href="{{ url_for(key) }}"
+         class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition
+                {% if active == key %}bg-white text-blue-700 shadow-sm{% else %}text-slate-500 hover:text-slate-700{% endif %}">
+        <span class="hidden sm:inline">{{ label }}</span>
+      </a>
+      {% endfor %}
+    </nav>
+  </header>
+
+  <!-- Description bar -->
+  <div class="bg-white border-b border-slate-200 px-6 py-2">
+    {% set current_tab = tabs | selectattr(0, 'equalto', active) | first %}
+    <div class="flex items-center gap-2">
+      <span class="text-sm font-medium text-slate-700">{{ current_tab[1] }}</span>
+      <span class="text-xs text-slate-400">— {{ current_tab[2] }}</span>
+    </div>
+  </div>
+
+  <!-- Flash messages -->
+  <div id="flash-container" class="fixed top-4 right-4 z-50 space-y-2">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+      <div class="flash-msg px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all
+                  {% if category == 'success' %}bg-emerald-600 text-white{% elif category == 'error' %}bg-red-600 text-white{% else %}bg-slate-700 text-white{% endif %}">
+        {{ message }}
+      </div>
+      {% endfor %}
+    {% endwith %}
+  </div>
+
+  <!-- Main content -->
+  <main class="flex-1 overflow-hidden flex flex-col bg-white">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

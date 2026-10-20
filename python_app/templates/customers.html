@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="flex flex-col h-full">
+  <!-- Toolbar -->
+  <div class="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-slate-200">
+    <input type="text" id="search-input" placeholder="Поиск клиентов..."
+           class="flex-1 min-w-[200px] px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400">
+    <button onclick="openModal()" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition shadow-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      Добавить клиента
+    </button>
+    <a href="{{ url_for('customers_export') }}" class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">
+      Экспорт
+    </a>
+  </div>
+
+  <!-- Table -->
+  <div class="flex-1 overflow-auto">
+    <table class="w-full text-sm border-collapse" id="data-table">
+      <thead class="sticky top-0">
+        <tr class="bg-slate-50 border-b border-slate-200">
+          <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-left cursor-pointer hover:bg-slate-100" onclick="sortBy('customer_name')">Клиент ↕</th>
+          <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-left cursor-pointer hover:bg-slate-100" onclick="sortBy('customer_code')">ИНН ↕</th>
+          <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-left">Договор</th>
+          <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-left">Телефон</th>
+          <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-left cursor-pointer hover:bg-slate-100" onclick="sortBy('contract_date')">Дата договора ↕</th>
+          <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-left">Статус</th>
+          <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-left">Тариф</th>
+          <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-right">Абон. плата</th>
+          <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-right">Годовая плата</th>
+          <th class="w-10 px-2 py-2.5"></th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        {% for r in rows %}
+        <tr class="border-b border-slate-100 hover:bg-blue-50/30 transition" data-search="{{ (r.customer_name or '')|lower }} {{ (r.customer_code or '')|lower }} {{ (r.contract_number or '')|lower }} {{ (r.address or '')|lower }}">
+          <td class="px-4 py-2.5 text-slate-700 font-medium editable" data-id="{{ r.id }}" data-column="customer_name" data-type="text">{{ r.customer_name or '—' }}</td>
+          <td class="px-4 py-2.5 text-slate-700 editable" data-id="{{ r.id }}" data-column="customer_code" data-type="text">{{ r.customer_code or '—' }}</td>
+          <td class="px-4 py-2.5 text-slate-700 editable" data-id="{{ r.id }}" data-column="contract_number" data-type="text">{{ r.contract_number or '—' }}</td>
+          <td class="px-4 py-2.5 text-slate-700 editable" data-id="{{ r.id }}" data-column="phone" data-type="text">{{ r.phone or '—' }}</td>
+          <td class="px-4 py-2.5 text-slate-700 editable" data-id="{{ r.id }}" data-column="contract_date" data-type="date">{{ r.contract_date | default('—') if r.contract_date else '—' }}</td>
+          <td class="px-4 py-2.5">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border
+                         {% if r.status == 'active' %}bg-emerald-100 text-emerald-700 border-emerald-200{% elif r.status == 'suspended' %}bg-amber-100 text-amber-700 border-amber-200{% else %}bg-red-100 text-red-700 border-red-200{% endif %}">
+              {{ CUSTOMER_STATUS_LABELS.get(r.status, r.status) }}
+            </span>
+          </td>
+          <td class="px-4 py-2.5 text-slate-700 editable" data-id="{{ r.id }}" data-column="tariff_plan" data-type="text">{{ r.tariff_plan or '—' }}</td>
+          <td class="px-4 py-2.5 text-slate-700 text-right editable" data-id="{{ r.id }}" data-column="monthly_fee" data-type="currency">{{ format_currency(r.monthly_fee) }}</td>
+          <td class="px-4 py-2.5 text-slate-700 text-right font-medium text-blue-900">{{ format_currency(r.annual_fee) }}</td>
+          <td class="px-2 py-2.5 text-center">
+            <form method="POST" action="{{ url_for('customers_delete', cid=r.id) }}" onsubmit="return confirm('Удалить клиента &quot;{{ r.customer_name }}&quot;?');">
+              <button type="submit" class="text-slate-300 hover:text-red-500 transition p-1" title="Удалить">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+        {% if rows|length == 0 %}
+        <tr><td colspan="10" class="text-center py-8 text-slate-400">Нет клиентов</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onclick="closeModal()"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+      <h2 class="text-lg font-semibold text-slate-800">Новый клиент</h2>
+      <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form method="POST" action="{{ url_for('customers_add') }}" class="px-6 py-4 space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-600 mb-1">Наименование клиента <span class="text-red-500">*</span></label>
+        <input type="text" name="customer_name" required class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-600 mb-1">ИНН</label>
+          <input type="text" name="customer_code" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Номер договора</label>
+          <input type="text" name="contract_number" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Телефон</label>
+          <input type="text" name="phone" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Email</label>
+          <input type="text" name="email" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition">
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-600 mb-1">Адрес</label>
+        <input type="text" name="address" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Дата договора</label>
+          <input type="date" name="contract_date" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Статус</label>
+          <select name="status" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition">
+            <option value="active">Активен</option>
+            <option value="suspended">Приостановлен</option>
+            <option value="terminated">Расторгнут</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Тарифный план</label>
+          <select name="tariff_plan" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition">
+            <option value="">— Выбрать —</option>
+            {% for t in TARIFF_PLANS %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Абон. плата (₽)</label>
+          <input type="number" step="0.01" name="monthly_fee" value="0" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition">
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 pt-2">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">Отмена</button>
+        <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition shadow-sm">Сохранить</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

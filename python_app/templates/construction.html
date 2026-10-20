@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="flex flex-col h-full">
+  <!-- Toolbar -->
+  <div class="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-slate-200">
+    <input type="text" id="search-input" placeholder="Поиск..."
+           class="flex-1 min-w-[200px] px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400">
+    <a href="{{ url_for('construction_export') }}" class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">Экспорт</a>
+  </div>
+
+  <div class="flex flex-col flex-1 overflow-hidden">
+    <!-- Table -->
+    <div class="flex-1 overflow-auto">
+      <table class="w-full text-sm border-collapse" id="data-table">
+        <thead class="sticky top-0">
+          <tr class="bg-slate-50 border-b border-slate-200">
+            <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-left">№ заказа</th>
+            <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-left">Клиент</th>
+            <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-left">Точка А</th>
+            <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-left">Точка Б</th>
+            <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-left">Услуга</th>
+            <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-left">Действие</th>
+            <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-left">Дата запуска</th>
+            <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-right">Срок (дн.)</th>
+            <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-left">Контрольная дата</th>
+            <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-right">Единоразовый</th>
+            <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-right">Ежемесячный</th>
+            <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 text-left">Статус</th>
+            <th class="w-10 px-2 py-2.5"></th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          {% for r in rows %}
+          <tr class="border-b border-slate-100 hover:bg-blue-50/30 transition cursor-pointer
+                     {% if selected_id == r.id %}bg-blue-50 ring-1 ring-inset ring-blue-200{% endif %}"
+              data-search="{{ (r.order_number or '')|lower }} {{ (r.customer_name or '')|lower }} {{ (r.connection_point or '')|lower }} {{ (r.endpoint_b or '')|lower }}"
+              onclick="window.location='{{ url_for('construction', order_id=r.id) }}'">
+            <td class="px-4 py-2.5 text-slate-700 font-medium editable" data-id="{{ r.id }}" data-column="order_number" data-type="text" onclick="event.stopPropagation()">{{ r.order_number or '—' }}</td>
+            <td class="px-4 py-2.5 text-slate-700 font-medium">{{ r.customer_name or '—' }}</td>
+            <td class="px-4 py-2.5 text-slate-700 editable" data-id="{{ r.id }}" data-column="connection_point" data-type="text" onclick="event.stopPropagation()">{{ r.connection_point or '—' }}</td>
+            <td class="px-4 py-2.5 text-slate-700 editable" data-id="{{ r.id }}" data-column="endpoint_b" data-type="text" onclick="event.stopPropagation()">{{ r.endpoint_b or '—' }}</td>
+            <td class="px-4 py-2.5 text-slate-700 editable" data-id="{{ r.id }}" data-column="service_type" data-type="select" data-options="{{ services|tojson|e }}" onclick="event.stopPropagation()">{{ r.service_type or '—' }}</td>
+            <td class="px-4 py-2.5 text-slate-700 editable" data-id="{{ r.id }}" data-column="action_type" data-type="select" data-options="{{ actions|tojson|e }}" onclick="event.stopPropagation()">{{ r.action_type or '—' }}</td>
+            <td class="px-4 py-2.5 text-slate-700 editable" data-id="{{ r.id }}" data-column="launch_date" data-type="date" onclick="event.stopPropagation()">{{ r.launch_date | default('—') if r.launch_date else '—' }}</td>
+            <td class="px-4 py-2.5 text-slate-700 text-right editable" data-id="{{ r.id }}" data-column="org_deadline" data-type="number" onclick="event.stopPropagation()">{{ r.org_deadline or '—' }}</td>
+            <td class="px-4 py-2.5 text-slate-400">{{ r.control_date | default('—') if r.control_date else '—' }}</td>
+            <td class="px-4 py-2.5 text-slate-700 text-right editable" data-id="{{ r.id }}" data-column="one_time_payment" data-type="currency" onclick="event.stopPropagation()">{{ format_currency(r.one_time_payment) }}</td>
+            <td class="px-4 py-2.5 text-slate-700 text-right editable" data-id="{{ r.id }}" data-column="monthly_payment" data-type="currency" onclick="event.stopPropagation()">{{ format_currency(r.monthly_payment) }}</td>
+            <td class="px-4 py-2.5">
+              {% set bg, text, border = ORDER_STATUS_COLORS.get(r.status, ('bg-slate-100','text-slate-600','border-slate-200')) %}
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border {{ bg }} {{ text }} {{ border }}">{{ ORDER_STATUS_LABELS.get(r.status, r.status) }}</span>
+            </td>
+            <td class="px-2 py-2.5 text-center" onclick="event.stopPropagation()">
+              <form method="POST" action="{{ url_for('construction_delete', oid=r.id) }}" onsubmit="return confirm('Удалить заказ &quot;{{ r.order_number }}&quot;? Связанные комментарии также будут удалены.');">
+                <button type="submit" class="text-slate-300 hover:text-red-500 transition p-1" title="Удалить">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+          {% if rows|length == 0 %}
+          <tr><td colspan="13" class="text-center py-8 text-slate-400">Нет заказов в стадии организации услуг</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Comments panel -->
+    <div class="border-t border-slate-200 bg-white flex flex-col" style="height:300px">
+      <div class="flex items-center gap-2 px-4 py-2.5 border-b border-slate-100">
+        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <span class="text-sm font-semibold text-slate-700">Текущий статус</span>
+        {% if selected_id %}
+        {% set sel = rows | selectattr('id', 'equalto', selected_id) | first %}
+        {% if sel %}
+        <span class="text-xs text-slate-400">— {{ sel.order_number }} · {{ sel.customer_name }}</span>
+        {% endif %}
+        {% endif %}
+      </div>
+
+      {% if selected_id %}
+      <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-slate-50/50">
+        {% if comments|length == 0 %}
+        <div class="text-center py-6 text-sm text-slate-400">Пока нет комментариев по этому заказу</div>
+        {% endif %}
+        {% for c in comments %}
+        <div class="flex gap-3">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div class="flex-1 bg-white rounded-lg border border-slate-100 px-3 py-2 shadow-sm">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-sm font-medium text-slate-700">{{ c.author }}</span>
+              <span class="text-xs text-slate-400">{{ format_datetime(c.created_at) }}</span>
+              {% if c.status_note %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-100 text-orange-700 border border-orange-200">{{ c.status_note }}</span>
+              {% endif %}
+            </div>
+            <p class="text-sm text-slate-600">{{ c.message }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="border-t border-slate-100 px-4 py-3 bg-white">
+        <form method="POST" action="{{ url_for('construction_comment_add', oid=selected_id) }}" class="space-y-2">
+          <div class="flex gap-2">
+            <input type="text" name="author" placeholder="Ваше имя" class="w-32 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30">
+            <input type="text" name="status_note" placeholder="Метка статуса (необязательно)" class="w-48 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30">
+          </div>
+          <div class="flex gap-2">
+            <input type="text" name="message" required placeholder="Добавить комментарий..." class="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400">
+            <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition shadow-sm">Отправить</button>
+          </div>
+        </form>
+      </div>
+      {% else %}
+      <div class="flex-1 flex items-center justify-center text-sm text-slate-400">
+        Выберите заказ в таблице выше, чтобы увидеть историю комментариев
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

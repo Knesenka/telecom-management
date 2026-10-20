@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="flex flex-col h-full overflow-auto">
+  <!-- Summary cards -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 p-4 bg-white border-b border-slate-200">
+    <div class="rounded-xl border p-4 bg-blue-50 border-blue-100 text-blue-700">
+      <div class="text-xs font-medium uppercase tracking-wide opacity-80">Клиентов</div>
+      <div class="text-xl font-bold">{{ total_customers }}</div>
+      <div class="text-xs opacity-70 mt-0.5">{{ active_customers }} активных</div>
+    </div>
+    <div class="rounded-xl border p-4 bg-orange-50 border-orange-100 text-orange-700">
+      <div class="text-xs font-medium uppercase tracking-wide opacity-80">Заказов</div>
+      <div class="text-xl font-bold">{{ total_orders }}</div>
+      <div class="text-xs opacity-70 mt-0.5">{{ construction_count }} в организации услуг</div>
+    </div>
+    <div class="rounded-xl border p-4 bg-emerald-50 border-emerald-100 text-emerald-700">
+      <div class="text-xs font-medium uppercase tracking-wide opacity-80">Сумма заказов</div>
+      <div class="text-xl font-bold">{{ format_currency(total_order_amount) }}</div>
+      <div class="text-xs opacity-70 mt-0.5">по всем заказам</div>
+    </div>
+    <div class="rounded-xl border p-4 bg-sky-50 border-sky-100 text-sky-700">
+      <div class="text-xs font-medium uppercase tracking-wide opacity-80">Фикс. начисления</div>
+      <div class="text-xl font-bold">{{ format_currency(total_actual) }}</div>
+      <div class="text-xs opacity-70 mt-0.5">план: {{ format_currency(total_plan) }}</div>
+    </div>
+  </div>
+
+  <!-- View tabs -->
+  <div class="flex items-center gap-2 px-4 py-3 bg-white border-b border-slate-200">
+    {% for key, label in [('byCustomer','По клиентам'), ('byQuarter','По кварталам'), ('byYear','По годам'), ('byStatus','По статусам заказов')] %}
+    <a href="{{ url_for('statistics', view=key) }}"
+       class="px-3 py-1.5 text-sm font-medium rounded-lg transition {% if view == key %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100{% endif %}">{{ label }}</a>
+    {% endfor %}
+    <a href="{{ url_for('statistics_export', view=view) }}" class="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">Экспорт</a>
+  </div>
+
+  <div class="flex-1 overflow-auto p-4 space-y-4">
+    {% if view == 'byCustomer' %}
+      <!-- Bar chart -->
+      <div class="bg-white rounded-xl border border-slate-200 p-4">
+        <h3 class="text-sm font-semibold text-slate-700 mb-3">Сумма заказов по клиентам</h3>
+        <div class="space-y-2">
+          {% for c in by_customer[:10] %}
+          <div class="flex items-center gap-3">
+            <div class="w-40 text-xs text-slate-600 truncate">{{ c.customer_name }}</div>
+            <div class="flex-1 bg-slate-100 rounded-full h-6 overflow-hidden">
+              <div class="bg-blue-500 h-full rounded-full flex items-center justify-end pr-2 transition-all"
+                   style="width: {{ (c.total_order_amount / max_order_amount * 100) if max_order_amount > 0 else 0 }}%">
+                <span class="text-[10px] text-white font-medium">{{ format_currency(c.total_order_amount) }}</span>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <!-- Table -->
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200">
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-slate-500 text-left">Клиент</th>
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-slate-500 text-right">Кол-во заказов</th>
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-slate-500 text-right">Сумма заказов</th>
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-slate-500 text-right">Абон. плата</th>
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-slate-500 text-right">План (фикс.)</th>
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-slate-500 text-right">Факт (фикс.)</th>
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-blue-500 text-right">Отклонение</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in by_customer %}
+            <tr class="border-b border-slate-100 hover:bg-blue-50/30">
+              <td class="px-4 py-2.5 font-medium text-slate-700">{{ c.customer_name }}</td>
+              <td class="px-4 py-2.5 text-right text-slate-700">{{ c.total_orders }}</td>
+              <td class="px-4 py-2.5 text-right text-slate-700">{{ format_currency(c.total_order_amount) }}</td>
+              <td class="px-4 py-2.5 text-right text-slate-700">{{ format_currency(c.monthly_fee) }}</td>
+              <td class="px-4 py-2.5 text-right text-slate-700">{{ format_currency(c.total_plan) }}</td>
+              <td class="px-4 py-2.5 text-right text-slate-700">{{ format_currency(c.total_actual) }}</td>
+              <td class="px-4 py-2.5 text-right font-medium {% if c.variance >= 0 %}text-emerald-600{% else %}text-red-500{% endif %}">{{ format_currency(c.variance) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+    {% elif view == 'byQuarter' %}
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200">
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-slate-500 text-left">Квартал</th>
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-slate-500 text-right">Заказов</th>
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-slate-500 text-right">Сумма заказов</th>
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-slate-500 text-right">План</th>
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-slate-500 text-right">Факт</th>
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-blue-500 text-right">Отклонение</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for q in by_quarter %}
+            <tr class="border-b border-slate-100 hover:bg-blue-50/30">
+              <td class="px-4 py-2.5 font-medium text-slate-700">{{ q.period }}</td>
+              <td class="px-4 py-2.5 text-right text-slate-700">{{ q.orders }}</td>
+              <td class="px-4 py-2.5 text-right text-slate-700">{{ format_currency(q.amount) }}</td>
+              <td class="px-4 py-2.5 text-right text-slate-700">{{ format_currency(q.plan) }}</td>
+              <td class="px-4 py-2.5 text-right text-slate-700">{{ format_currency(q.actual) }}</td>
+              <td class="px-4 py-2.5 text-right font-medium {% if q.actual - q.plan >= 0 %}text-emerald-600{% else %}text-red-500{% endif %}">{{ format_currency(q.actual - q.plan) }}</td>
+            </tr>
+            {% endfor %}
+            {% if by_quarter|length == 0 %}<tr><td colspan="6" class="text-center py-8 text-slate-400">Нет данных</td></tr>{% endif %}
+          </tbody>
+          {% if by_quarter|length > 0 %}
+          <tfoot>
+            <tr class="bg-slate-100 font-semibold text-slate-800">
+              <td class="px-4 py-2.5">Итого</td>
+              <td class="px-4 py-2.5 text-right">{{ by_quarter | map(attribute='orders') | sum }}</td>
+              <td class="px-4 py-2.5 text-right">{{ format_currency(by_quarter | map(attribute='amount') | sum) }}</td>
+              <td class="px-4 py-2.5 text-right">{{ format_currency(by_quarter | map(attribute='plan') | sum) }}</td>
+              <td class="px-4 py-2.5 text-right">{{ format_currency(by_quarter | map(attribute='actual') | sum) }}</td>
+              <td class="px-4 py-2.5 text-right text-blue-700">{{ format_currency(by_quarter | map(attribute='actual') | sum - by_quarter | map(attribute='plan') | sum) }}</td>
+            </tr>
+          </tfoot>
+          {% endif %}
+        </table>
+      </div>
+
+    {% elif view == 'byYear' %}
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200">
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-slate-500 text-left">Год</th>
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-slate-500 text-right">Заказов</th>
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-slate-500 text-right">Сумма заказов</th>
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-slate-500 text-right">План (фикс.)</th>
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-slate-500 text-right">Факт (фикс.)</th>
+              <th class="px-4 py-2.5 text-xs font-semibold uppercase text-blue-500 text-right">Отклонение</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for y in by_year %}
+            <tr class="border-b border-slate-100 hover:bg-blue-50/30">
+              <td class="px-4 py-2.5 font-medium text-slate-700">{{ y.period }}</td>
+              <td class="px-4 py-2.5 text-right text-slate-700">{{ y.orders }}</td>
+              <td class="px-4 py-2.5 text-right text-slate-700">{{ format_currency(y.amount) }}</td>
+              <td class="px-4 py-2.5 text-right text-slate-700">{{ format_currency(y.plan) }}</td>
+              <td class="px-4 py-2.5 text-right text-slate-700">{{ format_currency(y.actual) }}</td>
+              <td class="px-4 py-2.5 text-right font-medium {% if y.actual - y.plan >= 0 %}text-emerald-600{% else %}text-red-500{% endif %}">{{ format_currency(y.actual - y.plan) }}</td>
+            </tr>
+            {% endfor %}
+            {% if by_year|length == 0 %}<tr><td colspan="6" class="text-center py-8 text-slate-400">Нет данных</td></tr>{% endif %}
+          </tbody>
+        </table>
+      </div>
+
+    {% elif view == 'byStatus' %}
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {% for s in by_status %}
+        {% set bg, text, border = ORDER_STATUS_COLORS.get(s.status, ('border-slate-200','bg-slate-50','text-slate-700')) %}
+        <div class="rounded-xl border p-4 {{ border }} {{ bg }}">
+          <div class="text-sm font-semibold text-slate-700">{{ s.label }}</div>
+          <div class="text-2xl font-bold text-slate-800 mt-1">{{ s.count }}</div>
+          <div class="text-sm text-slate-600 mt-1">{{ format_currency(s.total_amount) }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

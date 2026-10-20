@@ -1,0 +1,63 @@
+/* Дополнительные стили для приложения */
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Плавное появление flash-сообщений */
+.flash-msg {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Скрытие flash-сообщений */
+.flash-msg.hide {
+  opacity: 0;
+  transform: translateX(20px);
+  transition: all 0.3s ease;
+}
+
+/* Inline-редактирование */
+.editable {
+  cursor: text;
+  transition: background-color 0.15s;
+}
+
+.editable:hover {
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+/* Поле ввода при inline-редактировании */
+.edit-input {
+  width: 100%;
+  padding: 2px 8px;
+  font-size: 0.875rem;
+  border: 1px solid #60a5fa;
+  border-radius: 4px;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.edit-input.text-right {
+  text-align: right;
+}
+
+/* Сортировка таблицы */
+th.sort-asc::after {
+  content: ' ↑';
+  color: #3b82f6;
+}
+
+th.sort-desc::after {
+  content: ' ↓';
+  color: #3b82f6;
+}
